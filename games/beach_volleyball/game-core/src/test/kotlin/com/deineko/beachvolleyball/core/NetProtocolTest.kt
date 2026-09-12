@@ -7,23 +7,26 @@ import kotlin.test.assertIs
 class NetProtocolTest {
 
     @Test
-    fun `paddle update round-trips through encode and decode`() {
-        val decoded = NetProtocol.decode(NetProtocol.encodePaddle(0.42f))
-        val message = assertIs<NetProtocol.Message.PaddleUpdate>(decoded)
-        assertEquals(0.42f, message.x)
+    fun `input update round-trips through encode and decode`() {
+        val input = BlobInput(moveDirection = -1, jump = true)
+        val decoded = NetProtocol.decode(NetProtocol.encodeInput(input))
+        val message = assertIs<NetProtocol.Message.InputUpdate>(decoded)
+        assertEquals(input, message.input)
     }
+
+    private fun sampleState() = MatchState(
+        ball = BallState(x = 0.5f, y = 0.9f, vx = 0.1f, vy = -0.2f),
+        player = BlobState(x = 0.3f, y = 0.1f, vy = 0.4f),
+        opponent = BlobState(x = 0.7f, y = 0f, vy = 0f),
+        playerScore = 3,
+        opponentScore = 7,
+        serving = Side.OPPONENT,
+        isFinished = false,
+    )
 
     @Test
     fun `state update round-trips through encode and decode`() {
-        val state = MatchState(
-            ball = BallState(x = 0.5f, y = 0.9f, z = 0.3f, vx = 0.1f, vy = -0.2f, vz = 1.5f),
-            playerX = 0.6f,
-            opponentX = 0.4f,
-            playerScore = 3,
-            opponentScore = 7,
-            serving = Side.OPPONENT,
-            isFinished = false,
-        )
+        val state = sampleState()
         val decoded = NetProtocol.decode(NetProtocol.encodeState(state))
         val message = assertIs<NetProtocol.Message.StateUpdate>(decoded)
         assertEquals(state, message.state)
@@ -31,14 +34,7 @@ class NetProtocolTest {
 
     @Test
     fun `mirroring a state twice returns the original`() {
-        val state = MatchState(
-            ball = BallState(x = 0.5f, y = 0.9f, z = 0.3f, vx = 0.1f, vy = -0.2f, vz = 1.5f),
-            playerX = 0.6f,
-            opponentX = 0.4f,
-            playerScore = 3,
-            opponentScore = 7,
-            serving = Side.PLAYER,
-        )
+        val state = sampleState()
         assertEquals(state, state.mirrored().mirrored())
     }
 
@@ -49,6 +45,7 @@ class NetProtocolTest {
         assertEquals(state.opponentScore, mirrored.playerScore)
         assertEquals(state.playerScore, mirrored.opponentScore)
         assertEquals(Side.OPPONENT, mirrored.serving)
+        assertEquals(Court.WIDTH - state.opponent.x, mirrored.player.x)
     }
 
     @Test

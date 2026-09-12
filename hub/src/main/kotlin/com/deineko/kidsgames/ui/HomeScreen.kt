@@ -39,9 +39,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.deineko.kidsgames.catalog.Catalog
 import com.deineko.kidsgames.catalog.CatalogRepository
+import com.deineko.kidsgames.catalog.HubUpdateInfo
 import com.deineko.kidsgames.games.AgeGroup
 import com.deineko.kidsgames.games.GameCategory
 import com.deineko.kidsgames.games.GameInfo
@@ -76,6 +78,21 @@ fun HomeScreen(onPlay: (String) -> Unit, onSettings: () -> Unit) {
         updateState = updateManager.evaluate(fetched)
     }
 
+    fun startHubUpdate(info: HubUpdateInfo) {
+        scope.launch {
+            updateState = UpdateState.Downloading(0)
+            runCatching {
+                val file = updateManager.download(info) { progress -> updateState = UpdateState.Downloading(progress) }
+                updateState = UpdateState.ReadyToInstall(file)
+                updateManager.promptInstall(file)
+            }.onFailure {
+                updateState = UpdateState.Failed(it.message ?: "Помилка завантаження")
+            }
+        }
+    }
+
+    val catalogVersions = catalog?.games?.associate { it.id to it.contentVersion } ?: emptyMap()
+
     val filteredGames = GameRegistry.games.filter { game ->
         (selectedAgeGroup == null || game.ageGroup == selectedAgeGroup) &&
             (selectedCategory == null || game.category == selectedCategory) &&
@@ -107,20 +124,7 @@ fun HomeScreen(onPlay: (String) -> Unit, onSettings: () -> Unit) {
         when (val state = updateState) {
             is UpdateState.Available -> UpdateBanner(
                 versionName = state.info.versionName,
-                onInstall = {
-                    scope.launch {
-                        updateState = UpdateState.Downloading(0)
-                        runCatching {
-                            val file = updateManager.download(state.info) { progress ->
-                                updateState = UpdateState.Downloading(progress)
-                            }
-                            updateState = UpdateState.ReadyToInstall(file)
-                            updateManager.promptInstall(file)
-                        }.onFailure {
-                            updateState = UpdateState.Failed(it.message ?: "Помилка завантаження")
-                        }
-                    }
-                },
+                onInstall = { startHubUpdate(state.info) },
             )
             is UpdateState.Downloading -> LinearProgressIndicator(
                 progress = { state.progress / 100f },
@@ -196,15 +200,21 @@ fun HomeScreen(onPlay: (String) -> Unit, onSettings: () -> Unit) {
             ) {
                 items(filteredGames) { game ->
                     val installed = installedState[game.id] ?: true
+                    val updateAvailable = (catalogVersions[game.id] ?: game.bundledVersion) > game.bundledVersion
                     GameCard(
                         game = game,
                         installed = installed,
+                        updateAvailable = updateAvailable,
                         onPlay = { onPlay(game.id) },
-                        onToggleInstalled = {
-                            val next = !installed
-                            installedStore.setInstalled(game.id, next)
-                            installedState[game.id] = next
+                        onInstall = {
+                            installedStore.setInstalled(game.id, true)
+                            installedState[game.id] = true
                         },
+                        onUninstall = {
+                            installedStore.setInstalled(game.id, false)
+                            installedState[game.id] = false
+                        },
+                        onUpdate = { catalog?.hub?.let(::startHubUpdate) },
                     )
                 }
             }
@@ -213,7 +223,15 @@ fun HomeScreen(onPlay: (String) -> Unit, onSettings: () -> Unit) {
 }
 
 @Composable
-private fun GameCard(game: GameInfo, installed: Boolean, onPlay: () -> Unit, onToggleInstalled: () -> Unit) {
+private fun GameCard(
+    game: GameInfo,
+    installed: Boolean,
+    updateAvailable: Boolean,
+    onPlay: () -> Unit,
+    onInstall: () -> Unit,
+    onUninstall: () -> Unit,
+    onUpdate: () -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -257,13 +275,24 @@ private fun GameCard(game: GameInfo, installed: Boolean, onPlay: () -> Unit, onT
             }
         }
         Spacer(modifier = Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Button(onClick = onPlay, enabled = installed, modifier = Modifier.weight(1f)) {
-                Text("Грати")
-            }
-            OutlinedButton(onClick = onToggleInstalled, modifier = Modifier.weight(1f)) {
-                Text(if (installed) "Видалити" else "Встановити")
-            }
+
+        val (primaryLabel, primaryAction) = when {
+            installed && updateAvailable -> "Оновити" to onUpdate
+            !installed -> "Встановити" to onInstall
+            else -> "Грати" to onPlay
+        }
+        Button(onClick = primaryAction, modifier = Modifier.fillMaxWidth()) {
+            Text(primaryLabel)
+        }
+        if (installed) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Видалити",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onUninstall),
+            )
         }
     }
 }

@@ -17,4 +17,7 @@ object BeachPalette {
     val playerBody = Color(0xFF57C6B4)
     val opponentBody = Color(0xFFE38A4E)
     val shadow = Color(0x40000000)
+    val controlButton = Color(0xCCFFFFFF)
+    val controlButtonPressed = Color(0xFFFFFFFF)
+    val controlGlyph = Color(0xFF2B2620)
 }

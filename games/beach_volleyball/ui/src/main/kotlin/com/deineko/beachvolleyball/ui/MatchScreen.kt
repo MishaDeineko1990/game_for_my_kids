@@ -3,7 +3,7 @@ package com.deineko.beachvolleyball.ui
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -35,13 +37,13 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.deineko.beachvolleyball.core.BallState
 import com.deineko.beachvolleyball.core.BeachVolleyballEngine
+import com.deineko.beachvolleyball.core.BlobInput
+import com.deineko.beachvolleyball.core.BlobState
 import com.deineko.beachvolleyball.core.Court
 import com.deineko.beachvolleyball.core.MatchState
 import com.deineko.beachvolleyball.core.NetProtocol
@@ -56,27 +58,25 @@ sealed class MatchMode {
     data object Client : MatchMode()
 }
 
-private const val HEIGHT_SCALE = 0.55f
-private const val BOARD_PADDING = 32f
+private const val BOARD_SIDE_PADDING = 28f
+private const val BOARD_BOTTOM_PADDING = 24f
+private const val BOARD_TOP_PADDING = 32f
+private const val COURT_VISUAL_HEIGHT = Court.SERVE_HEIGHT + 0.3f
 
-private data class CourtMetrics(val originX: Float, val originY: Float, val width: Float, val height: Float) {
-    fun screenX(courtY: Float) = originX + (courtY / Court.LENGTH) * width
-    fun screenY(courtX: Float) = originY + (courtX / Court.WIDTH) * height
-    fun courtXFromScreenY(screenY: Float): Float =
-        (((screenY - originY) / height) * Court.WIDTH).coerceIn(Court.PADDLE_RADIUS, Court.WIDTH - Court.PADDLE_RADIUS)
+private data class CourtMetrics(val originX: Float, val groundY: Float, val scale: Float) {
+    fun screenX(courtX: Float) = originX + courtX * scale
+    fun screenY(courtY: Float) = groundY - courtY * scale
 }
 
 private fun computeCourtMetrics(canvasWidth: Float, canvasHeight: Float): CourtMetrics {
-    val availW = (canvasWidth - BOARD_PADDING * 2).coerceAtLeast(1f)
-    val availH = (canvasHeight - BOARD_PADDING * 2).coerceAtLeast(1f)
-    val scale = minOf(availW / Court.LENGTH, availH / Court.WIDTH)
-    val courtW = Court.LENGTH * scale
-    val courtH = Court.WIDTH * scale
+    val availW = (canvasWidth - BOARD_SIDE_PADDING * 2).coerceAtLeast(1f)
+    val availH = (canvasHeight - BOARD_BOTTOM_PADDING - BOARD_TOP_PADDING).coerceAtLeast(1f)
+    val scale = minOf(availW / Court.WIDTH, availH / COURT_VISUAL_HEIGHT)
+    val courtW = Court.WIDTH * scale
     return CourtMetrics(
         originX = (canvasWidth - courtW) / 2f,
-        originY = (canvasHeight - courtH) / 2f,
-        width = courtW,
-        height = courtH,
+        groundY = canvasHeight - BOARD_BOTTOM_PADDING,
+        scale = scale,
     )
 }
 
@@ -89,18 +89,27 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
     val isAuthoritative = mode is MatchMode.VsPc || mode is MatchMode.Host
 
     var matchState by remember { mutableStateOf(MatchState.initial()) }
-    var localPaddle by remember { mutableFloatStateOf(Court.WIDTH / 2f) }
-    var playerPulse by remember { mutableFloatStateOf(0f) }
-    var opponentPulse by remember { mutableFloatStateOf(0f) }
+    var leftPressed by remember { mutableStateOf(false) }
+    var rightPressed by remember { mutableStateOf(false) }
+    var jumpPressed by remember { mutableStateOf(false) }
     var ballSpinDeg by remember { mutableFloatStateOf(0f) }
-    var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+    var latestOpponentInput by remember { mutableStateOf(BlobInput.NONE) }
+
+    val localInput = BlobInput(
+        moveDirection = when {
+            leftPressed && !rightPressed -> -1
+            rightPressed && !leftPressed -> 1
+            else -> 0
+        },
+        jump = jumpPressed,
+    )
 
     if (connection != null) {
         LaunchedEffect(connection) {
             connection.messages.collect { bytes ->
                 when (val message = NetProtocol.decode(bytes)) {
-                    is NetProtocol.Message.PaddleUpdate ->
-                        if (mode is MatchMode.Host) matchState = matchState.copy(opponentX = message.x)
+                    is NetProtocol.Message.InputUpdate ->
+                        if (mode is MatchMode.Host) latestOpponentInput = message.input
                     is NetProtocol.Message.StateUpdate ->
                         if (mode is MatchMode.Client) matchState = message.state.mirrored()
                     null -> Unit
@@ -110,8 +119,8 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
     }
 
     if (mode is MatchMode.Client) {
-        LaunchedEffect(localPaddle) {
-            connection?.send(NetProtocol.encodePaddle(localPaddle))
+        LaunchedEffect(localInput) {
+            connection?.send(NetProtocol.encodeInput(localInput))
         }
     }
 
@@ -123,20 +132,15 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
             lastFrame = now
 
             ballSpinDeg += (abs(matchState.ball.vx) + abs(matchState.ball.vy)) * dt * 220f
-            playerPulse = (playerPulse - dt * 3f).coerceAtLeast(0f)
-            opponentPulse = (opponentPulse - dt * 3f).coerceAtLeast(0f)
 
             if (isAuthoritative) {
-                val opponentX = if (mode is MatchMode.VsPc) {
-                    SimpleAi.nextOpponentX(matchState.opponentX, matchState.ball, dt)
+                val opponentInput = if (mode is MatchMode.VsPc) {
+                    SimpleAi.decide(matchState.opponent, matchState.ball)
                 } else {
-                    matchState.opponentX
+                    latestOpponentInput
                 }
-                val withInputs = matchState.copy(playerX = localPaddle, opponentX = opponentX)
-                val result = BeachVolleyballEngine.step(withInputs, dt, speed)
+                val result = BeachVolleyballEngine.step(matchState, dt, localInput, opponentInput, speed)
                 matchState = result.state
-                if (result.events.playerHit) playerPulse = 1f
-                if (result.events.opponentHit) opponentPulse = 1f
                 if (result.events.playerHit || result.events.opponentHit) soundEngine.playHit()
                 if (result.events.scored) {
                     if (result.state.isFinished) soundEngine.playWin() else soundEngine.playScore()
@@ -146,35 +150,14 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
         }
     }
 
-    val renderState = if (mode is MatchMode.Client) matchState.copy(playerX = localPaddle) else matchState
+    val renderState = matchState
 
     Box(modifier = Modifier.fillMaxSize().background(BeachPalette.skyBottom)) {
-        Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .onSizeChanged { canvasSize = it }
-                .pointerInput(canvasSize) {
-                    val metrics = computeCourtMetrics(canvasSize.width.toFloat(), canvasSize.height.toFloat())
-                    detectDragGestures(
-                        onDragStart = { offset -> localPaddle = metrics.courtXFromScreenY(offset.y) },
-                        onDrag = { change, _ -> localPaddle = metrics.courtXFromScreenY(change.position.y) },
-                    )
-                },
-        ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
             val metrics = computeCourtMetrics(size.width, size.height)
-            drawCourt(metrics)
-            drawCharacter(
-                center = Offset(metrics.screenX(Court.OPPONENT_BASELINE_Y), metrics.screenY(renderState.opponentX)),
-                radius = metrics.height * Court.PADDLE_RADIUS,
-                color = BeachPalette.opponentBody,
-                pulse = opponentPulse,
-            )
-            drawCharacter(
-                center = Offset(metrics.screenX(Court.PLAYER_BASELINE_Y), metrics.screenY(renderState.playerX)),
-                radius = metrics.height * Court.PADDLE_RADIUS,
-                color = BeachPalette.playerBody,
-                pulse = playerPulse,
-            )
+            drawCourt(metrics, size.width)
+            drawBlob(metrics, renderState.opponent, BeachPalette.opponentBody)
+            drawBlob(metrics, renderState.player, BeachPalette.playerBody)
             drawBallWithShadow(metrics, renderState.ball, ballSpinDeg)
         }
 
@@ -183,16 +166,16 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                text = "${renderState.opponentScore}",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = BeachPalette.opponentBody,
-            )
-            Text(
                 text = "${renderState.playerScore}",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = BeachPalette.playerBody,
+            )
+            Text(
+                text = "${renderState.opponentScore}",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = BeachPalette.opponentBody,
             )
         }
 
@@ -209,6 +192,22 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
                 },
         )
 
+        Row(
+            modifier = Modifier.align(Alignment.BottomStart).padding(20.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            ControlButton(label = "◀", pressed = leftPressed, onPressChange = { leftPressed = it })
+            ControlButton(label = "▶", pressed = rightPressed, onPressChange = { rightPressed = it })
+        }
+
+        ControlButton(
+            label = "⤒",
+            pressed = jumpPressed,
+            onPressChange = { jumpPressed = it },
+            modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),
+            size = 72.dp,
+        )
+
         if (renderState.isFinished) {
             ResultOverlay(
                 playerWon = renderState.playerScore > renderState.opponentScore,
@@ -220,6 +219,32 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
                 },
             )
         }
+    }
+}
+
+@Composable
+private fun ControlButton(
+    label: String,
+    pressed: Boolean,
+    onPressChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    size: androidx.compose.ui.unit.Dp = 64.dp,
+) {
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(if (pressed) BeachPalette.controlButtonPressed else BeachPalette.controlButton)
+            .pointerInput(Unit) {
+                detectTapGestures(onPress = {
+                    onPressChange(true)
+                    tryAwaitRelease()
+                    onPressChange(false)
+                })
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, color = BeachPalette.controlGlyph, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -255,26 +280,29 @@ private fun ResultOverlay(playerWon: Boolean, canRematch: Boolean, onRematch: ()
     }
 }
 
-private fun DrawScope.drawCourt(metrics: CourtMetrics) {
+private fun DrawScope.drawCourt(metrics: CourtMetrics, canvasWidth: Float) {
     drawRect(
         color = BeachPalette.sand,
-        topLeft = Offset(metrics.originX, metrics.originY),
-        size = Size(metrics.width, metrics.height),
+        topLeft = Offset(0f, metrics.groundY),
+        size = Size(canvasWidth, size.height - metrics.groundY),
     )
-    val netX = metrics.screenX(Court.NET_Y)
-    drawRect(
+    drawLine(
         color = BeachPalette.sandLine,
-        topLeft = Offset(netX - metrics.width * 0.004f, metrics.originY),
-        size = Size(metrics.width * 0.008f, metrics.height),
+        start = Offset(0f, metrics.groundY),
+        end = Offset(canvasWidth, metrics.groundY),
+        strokeWidth = 4f,
     )
+
+    val netX = metrics.screenX(Court.NET_X)
+    val netTopY = metrics.screenY(Court.NET_HEIGHT)
     drawRect(
         color = BeachPalette.netPost,
-        topLeft = Offset(netX - 4f, metrics.originY - 14f),
-        size = Size(8f, metrics.height + 28f),
+        topLeft = Offset(netX - 4f, netTopY - 10f),
+        size = Size(8f, metrics.groundY - netTopY + 10f),
     )
-    val meshSteps = 8
+    val meshSteps = 6
     for (i in 0..meshSteps) {
-        val y = metrics.originY + (metrics.height / meshSteps) * i
+        val y = netTopY + ((metrics.groundY - netTopY) / meshSteps) * i
         drawLine(
             color = BeachPalette.netMesh,
             start = Offset(netX - 14f, y),
@@ -284,14 +312,24 @@ private fun DrawScope.drawCourt(metrics: CourtMetrics) {
     }
 }
 
-private fun DrawScope.drawCharacter(center: Offset, radius: Float, color: Color, pulse: Float) {
-    val scaleX = 1f + pulse * 0.22f
-    val scaleY = 1f - pulse * 0.22f
+private fun DrawScope.drawBlob(metrics: CourtMetrics, blob: BlobState, color: Color) {
+    val radius = Court.BLOB_RADIUS * metrics.scale
+    val center = Offset(metrics.screenX(blob.x), metrics.screenY(blob.y) - radius)
+
+    val shadowScale = 1f - (blob.y / 1.2f).coerceIn(0f, 0.7f)
+    drawOval(
+        color = BeachPalette.shadow,
+        topLeft = Offset(center.x - radius * shadowScale, metrics.groundY - radius * 0.3f * shadowScale),
+        size = Size(radius * 2f * shadowScale, radius * 0.6f * shadowScale),
+    )
+
+    val stretch = (blob.vy / Court.JUMP_VELOCITY).coerceIn(-1f, 1f)
+    val scaleY = 1f + stretch * 0.22f
+    val scaleX = 1f - stretch * 0.14f
     withTransform({ scale(scaleX, scaleY, pivot = center) }) {
-        drawCircle(color = Color(0x33000000), radius = radius * 0.9f, center = center + Offset(0f, radius * 0.55f))
         drawCircle(color = color, radius = radius, center = center)
         val eyeDx = radius * 0.32f
-        val eyeDy = -radius * 0.18f
+        val eyeDy = -radius * 0.15f
         drawCircle(color = Color.Black, radius = radius * 0.1f, center = center + Offset(-eyeDx, eyeDy))
         drawCircle(color = Color.Black, radius = radius * 0.1f, center = center + Offset(eyeDx, eyeDy))
         drawArc(
@@ -307,18 +345,16 @@ private fun DrawScope.drawCharacter(center: Offset, radius: Float, color: Color,
 }
 
 private fun DrawScope.drawBallWithShadow(metrics: CourtMetrics, ball: BallState, spinDeg: Float) {
-    val groundX = metrics.screenX(ball.y)
-    val groundY = metrics.screenY(ball.x)
-    val radius = metrics.height * Court.BALL_RADIUS * 1.4f
-    val shadowScale = 1f - (ball.z / 1.4f).coerceIn(0f, 0.65f)
+    val radius = Court.BALL_RADIUS * metrics.scale * 1.3f
+    val groundX = metrics.screenX(ball.x)
+    val shadowScale = 1f - (ball.y / 1.2f).coerceIn(0f, 0.7f)
     drawOval(
         color = BeachPalette.shadow,
-        topLeft = Offset(groundX - radius * shadowScale, groundY - radius * 0.35f * shadowScale),
-        size = Size(radius * 2f * shadowScale, radius * 0.7f * shadowScale),
+        topLeft = Offset(groundX - radius * shadowScale, metrics.groundY - radius * 0.3f * shadowScale),
+        size = Size(radius * 2f * shadowScale, radius * 0.6f * shadowScale),
     )
 
-    val liftPx = ball.z * metrics.height * HEIGHT_SCALE
-    val ballCenter = Offset(groundX, groundY - liftPx)
+    val ballCenter = Offset(groundX, metrics.screenY(ball.y) - radius)
     withTransform({ rotate(spinDeg, pivot = ballCenter) }) {
         drawCircle(color = Color.White, radius = radius, center = ballCenter)
         drawArc(
