@@ -1,9 +1,9 @@
 {
   "hub": {
-    "versionCode": 5,
-    "versionName": "1.4.0",
-    "apkUrl": "https://github.com/MishaDeineko1990/game_for_my_kids/releases/download/hub-v1.4.0/hub-debug.apk",
-    "notes": "Повільніший м'яч, керування перетягуванням пальця, фон море/пляж/пальми в пляжному волейболі."
+    "versionCode": 6,
+    "versionName": "1.4.1",
+    "apkUrl": "https://github.com/MishaDeineko1990/game_for_my_kids/releases/download/hub-v1.4.1/hub-debug.apk",
+    "notes": "Критичний фікс: керування персонажем у пляжному волейболі не працювало через застарілий стан у ігровому циклі."
   },
   "games": [
     {
@@ -16,7 +16,7 @@
       "id": "beach_volleyball",
       "title": "Пляжний волейбол",
       "description": "Перетягуй пальцем і стрибай через сітку -- проти комп'ютера або друга по Bluetooth",
-      "contentVersion": 3
+      "contentVersion": 4
     }
   ]
 }
