@@ -29,6 +29,7 @@ class NetProtocolTest {
         opponentScore = 7,
         serving = Side.OPPONENT,
         isFinished = false,
+        servePending = true,
     )
 
     @Test

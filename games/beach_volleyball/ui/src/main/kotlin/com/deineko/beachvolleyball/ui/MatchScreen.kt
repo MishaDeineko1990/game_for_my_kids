@@ -50,6 +50,7 @@ import com.deineko.beachvolleyball.core.BlobState
 import com.deineko.beachvolleyball.core.Court
 import com.deineko.beachvolleyball.core.MatchState
 import com.deineko.beachvolleyball.core.NetProtocol
+import com.deineko.beachvolleyball.core.Side
 import com.deineko.beachvolleyball.core.SimpleAi
 import com.deineko.connect.GameConnection
 import kotlin.math.abs
@@ -66,7 +67,7 @@ sealed class MatchMode {
 private const val BOARD_SIDE_PADDING = 28f
 private const val BOARD_BOTTOM_PADDING = 24f
 private const val BOARD_TOP_PADDING = 32f
-private const val COURT_VISUAL_HEIGHT = Court.SERVE_HEIGHT + 0.3f
+private const val COURT_VISUAL_HEIGHT = Court.PLAY_AREA_HEIGHT
 
 private data class CourtMetrics(val originX: Float, val groundY: Float, val scale: Float) {
     fun screenX(courtX: Float) = originX + courtX * scale
@@ -98,6 +99,7 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
     var localTargetX by remember { mutableStateOf<Float?>(null) }
     var jumpPressed by remember { mutableStateOf(false) }
     var ballSpinDeg by remember { mutableFloatStateOf(0f) }
+    var pulsePhase by remember { mutableFloatStateOf(0f) }
     var latestOpponentInput by remember { mutableStateOf(BlobInput.NONE) }
 
     val localInput = BlobInput(targetX = localTargetX, jump = jumpPressed)
@@ -130,6 +132,7 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
             lastFrame = now
 
             ballSpinDeg += (abs(matchState.ball.vx) + abs(matchState.ball.vy)) * dt * 220f
+            pulsePhase += dt * 5f
 
             if (isAuthoritative) {
                 // Read the live State values here, inside the loop, rather than closing over the
@@ -140,7 +143,7 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
                 // exactly the "controls don't do anything" bug a real device caught.
                 val frameInput = BlobInput(targetX = localTargetX, jump = jumpPressed)
                 val opponentInput = if (mode is MatchMode.VsPc) {
-                    SimpleAi.decide(matchState.opponent, matchState.ball)
+                    SimpleAi.decide(matchState.opponent, matchState.ball, matchState.servePending)
                 } else {
                     latestOpponentInput
                 }
@@ -179,7 +182,8 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
             drawCourt(metrics, size.width)
             drawBlob(metrics, renderState.opponent, BeachPalette.opponentBody)
             drawBlob(metrics, renderState.player, BeachPalette.playerBody)
-            drawBallWithShadow(metrics, renderState.ball, ballSpinDeg)
+            val pulseScale = if (renderState.servePending) 1f + 0.08f * sin(pulsePhase) else 1f
+            drawBallWithShadow(metrics, renderState.ball, ballSpinDeg, pulseScale)
         }
 
         Row(
@@ -197,6 +201,16 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = BeachPalette.opponentBody,
+            )
+        }
+
+        if (renderState.servePending && renderState.serving == Side.PLAYER) {
+            Text(
+                text = "Стрибни, щоб подати! ⤒",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = BeachPalette.playerBody,
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 52.dp),
             )
         }
 
@@ -395,7 +409,7 @@ private fun DrawScope.drawBlob(metrics: CourtMetrics, blob: BlobState, color: Co
     val radius = Court.BLOB_RADIUS * metrics.scale
     val center = Offset(metrics.screenX(blob.x), metrics.screenY(blob.y) - radius)
 
-    val shadowScale = 1f - (blob.y / 1.2f).coerceIn(0f, 0.7f)
+    val shadowScale = 1f - (blob.y / Court.PLAY_AREA_HEIGHT).coerceIn(0f, 0.7f)
     drawOval(
         color = BeachPalette.shadow,
         topLeft = Offset(center.x - radius * shadowScale, metrics.groundY - radius * 0.3f * shadowScale),
@@ -423,10 +437,10 @@ private fun DrawScope.drawBlob(metrics: CourtMetrics, blob: BlobState, color: Co
     }
 }
 
-private fun DrawScope.drawBallWithShadow(metrics: CourtMetrics, ball: BallState, spinDeg: Float) {
-    val radius = Court.BALL_RADIUS * metrics.scale * 1.3f
+private fun DrawScope.drawBallWithShadow(metrics: CourtMetrics, ball: BallState, spinDeg: Float, radiusScale: Float = 1f) {
+    val radius = Court.BALL_RADIUS * metrics.scale * 1.3f * radiusScale
     val groundX = metrics.screenX(ball.x)
-    val shadowScale = 1f - (ball.y / 1.2f).coerceIn(0f, 0.7f)
+    val shadowScale = 1f - (ball.y / Court.PLAY_AREA_HEIGHT).coerceIn(0f, 0.7f)
     drawOval(
         color = BeachPalette.shadow,
         topLeft = Offset(groundX - radius * shadowScale, metrics.groundY - radius * 0.3f * shadowScale),

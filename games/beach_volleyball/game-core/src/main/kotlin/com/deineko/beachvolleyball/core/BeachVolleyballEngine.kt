@@ -17,8 +17,9 @@ data class StepResult(val state: MatchState, val events: StepEvents)
 /** Side-view volleyball physics: gravity on the ball and both blobs, arcade-style instant
  *  horizontal movement (no acceleration -- Blobby Volley's own feel), real circle-vs-circle
  *  collision between the ball and a blob (the bounce direction falls naturally out of the contact
- *  normal, no paddle-offset hack needed), a solid net, and ground-touch scoring. Pure function of
- *  the current state, elapsed time and both sides' inputs -- no I/O, no randomness. */
+ *  normal, no paddle-offset hack needed), a solid net, side walls and a ceiling the ball bounces
+ *  off (so it can never leave the court), and ground-touch scoring. Pure function of the current
+ *  state, elapsed time and both sides' inputs -- no I/O, no randomness. */
 object BeachVolleyballEngine {
 
     fun step(
@@ -34,12 +35,19 @@ object BeachVolleyballEngine {
         val player = stepBlob(state.player, playerInput, dt, isPlayerSide = true)
         val opponent = stepBlob(state.opponent, opponentInput, dt, isPlayerSide = false)
 
-        var ball = stepBall(state.ball, dt)
+        // A pending serve hovers motionless -- no gravity, no wall/ceiling/net bounce -- until the
+        // serving side's jump makes contact with it below, at which point collide() launches it
+        // exactly like any other hit and the match proceeds normally from there on.
+        var ball = if (state.servePending) state.ball else stepBall(state.ball, dt)
         var netBounce = false
-        val netResult = bounceOffNet(ball, state.ball)
-        if (netResult != null) {
-            ball = netResult
-            netBounce = true
+        if (!state.servePending) {
+            ball = bounceOffWalls(ball)
+            ball = bounceOffCeiling(ball)
+            val netResult = bounceOffNet(ball, state.ball)
+            if (netResult != null) {
+                ball = netResult
+                netBounce = true
+            }
         }
 
         var playerHit = false
@@ -53,7 +61,9 @@ object BeachVolleyballEngine {
             ball = afterOpponent
         }
 
-        if (ball.y <= Court.GROUND_Y) {
+        val servePending = state.servePending && !playerHit && !opponentHit
+
+        if (!servePending && ball.y <= Court.GROUND_Y) {
             val playerSideLanded = ball.x < Court.NET_X
             val playerScore = state.playerScore + if (playerSideLanded) 0 else 1
             val opponentScore = state.opponentScore + if (playerSideLanded) 1 else 0
@@ -67,12 +77,13 @@ object BeachVolleyballEngine {
                 opponentScore = opponentScore,
                 serving = nextServing,
                 isFinished = finished,
+                servePending = true,
             )
             return StepResult(next, StepEvents(playerHit, opponentHit, netBounce, scored = true))
         }
 
         return StepResult(
-            state.copy(ball = ball, player = player, opponent = opponent),
+            state.copy(ball = ball, player = player, opponent = opponent, servePending = servePending),
             StepEvents(playerHit, opponentHit, netBounce),
         )
     }
@@ -87,13 +98,10 @@ object BeachVolleyballEngine {
             minX = Court.NET_X + Court.NET_HALF_WIDTH + Court.BLOB_RADIUS
             maxX = Court.WIDTH - Court.BLOB_RADIUS
         }
-        val x = if (input.targetX != null) {
-            val target = input.targetX.coerceIn(minX, maxX)
-            val step = Court.BLOB_MOVE_SPEED * dt
-            (blob.x + (target - blob.x).coerceIn(-step, step))
-        } else {
-            blob.x
-        }.coerceIn(minX, maxX)
+        // Direct 1:1 mapping, no chase/catch-up: a dragging finger is already a continuous stream
+        // of positions every frame, so tracking it exactly is both simpler and removes the lag a
+        // capped-speed "chase the target" version read as glitchy on a real device.
+        val x = (input.targetX ?: blob.x).coerceIn(minX, maxX)
 
         val grounded = blob.y <= Court.GROUND_Y
         val vy = if (grounded && input.jump) Court.JUMP_VELOCITY else blob.vy - Court.GRAVITY * dt
@@ -111,6 +119,25 @@ object BeachVolleyballEngine {
         val y = ball.y + ball.vy * dt
         val vy = ball.vy - Court.GRAVITY * dt
         return ball.copy(x = x, y = y, vy = vy)
+    }
+
+    // Both guards below only reflect a ball that's actually moving INTO the boundary -- a ball
+    // merely positioned past it (which can't happen in real play, only in a hand-built state) is
+    // left alone rather than getting a spurious bounce, since it's presumably already headed back
+    // the right way.
+    private fun bounceOffWalls(ball: BallState): BallState {
+        val minX = Court.BALL_RADIUS
+        val maxX = Court.WIDTH - Court.BALL_RADIUS
+        return when {
+            ball.x < minX && ball.vx < 0f -> ball.copy(x = minX, vx = -ball.vx * Court.WALL_RESTITUTION)
+            ball.x > maxX && ball.vx > 0f -> ball.copy(x = maxX, vx = -ball.vx * Court.WALL_RESTITUTION)
+            else -> ball
+        }
+    }
+
+    private fun bounceOffCeiling(ball: BallState): BallState {
+        if (ball.y <= Court.CEILING_Y || ball.vy <= 0f) return ball
+        return ball.copy(y = Court.CEILING_Y, vy = -ball.vy * Court.CEILING_RESTITUTION)
     }
 
     private fun bounceOffNet(ball: BallState, previous: BallState): BallState? {
@@ -162,7 +189,7 @@ object BeachVolleyballEngine {
 
         val bounceVx = relVx - 2 * approachSpeed * nx
         val bounceVy = relVy - 2 * approachSpeed * ny
-        val speed = hypot(bounceVx, bounceVy).coerceAtLeast(Court.MIN_HIT_SPEED)
+        val speed = hypot(bounceVx, bounceVy).coerceIn(Court.MIN_HIT_SPEED, Court.MAX_HIT_SPEED)
         val angle = atan2(bounceVy, bounceVx)
         return ball.copy(
             x = correctedX,

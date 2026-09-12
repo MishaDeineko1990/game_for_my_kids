@@ -51,18 +51,10 @@ class BeachVolleyballEngineTest {
     }
 
     @Test
-    fun `a blob chases its drag target at a capped speed, not instantly`() {
-        val farTarget = (Court.PLAYER_HOME_X + 0.3f)
-        val result = step(stillState(), dt = 0.01f, player = BlobInput(targetX = farTarget, jump = false))
-        assertTrue(result.state.player.x > Court.PLAYER_HOME_X, "should move toward the target")
-        assertTrue(result.state.player.x < farTarget, "shouldn't teleport to the target in one tiny step")
-    }
-
-    @Test
-    fun `a blob reaches a nearby drag target exactly, without overshooting`() {
-        val nearTarget = Court.PLAYER_HOME_X + 0.001f
-        val result = step(stillState(), dt = 0.1f, player = BlobInput(targetX = nearTarget, jump = false))
-        assertEquals(nearTarget, result.state.player.x)
+    fun `a blob moves directly to its drag target every frame, matching the finger 1-to-1`() {
+        val farTarget = Court.PLAYER_HOME_X + 0.1f
+        val result = step(stillState(), dt = 0.001f, player = BlobInput(targetX = farTarget, jump = false))
+        assertEquals(farTarget, result.state.player.x, "no lag/chase -- the drag target is reached the same frame")
     }
 
     @Test
@@ -165,5 +157,64 @@ class BeachVolleyballEngineTest {
         val slowDrop = 1f - slow.state.ball.y
         val fastDrop = 1f - fast.state.ball.y
         assertTrue(slowDrop < fastDrop, "SLOW should move the ball less per real second than FAST")
+    }
+
+    @Test
+    fun `a fresh serve hovers in place instead of falling`() {
+        val fresh = MatchState.initial(serving = Side.OPPONENT)
+        assertTrue(fresh.servePending)
+        val result = step(fresh, dt = 1f)
+        assertEquals(Court.SERVE_HOVER_HEIGHT, result.state.ball.y, "a pending serve must not fall under gravity")
+        assertEquals(0f, result.state.ball.vy)
+        assertTrue(result.state.servePending, "still pending -- nobody jumped into it")
+        assertFalse(result.events.scored)
+    }
+
+    @Test
+    fun `jumping into a pending serve launches it and clears the pending flag`() {
+        val minDist = Court.BALL_RADIUS + Court.BLOB_RADIUS
+        val state = MatchState(
+            ball = Court.serveBall(Side.OPPONENT),
+            player = Court.homeBlob(Side.PLAYER),
+            opponent = BlobState(
+                x = Court.OPPONENT_HOME_X,
+                y = Court.SERVE_HOVER_HEIGHT - minDist + 0.01f,
+                vy = Court.JUMP_VELOCITY,
+            ),
+            serving = Side.OPPONENT,
+            servePending = true,
+        )
+        val result = step(state, dt = 0.01f, opponent = BlobInput(targetX = Court.OPPONENT_HOME_X, jump = false))
+        assertTrue(result.events.opponentHit, "the jump should make contact with the held ball")
+        assertFalse(result.state.servePending, "a struck serve is live from then on")
+        assertTrue(result.state.ball.vy > 0f, "heading it should send it upward")
+    }
+
+    @Test
+    fun `the ball bounces off the side wall instead of flying past it`() {
+        val nearRightWall = stillState(ballX = Court.WIDTH - Court.BALL_RADIUS - 0.001f, ballY = 0.5f)
+            .let { it.copy(ball = it.ball.copy(vx = 0.8f)) }
+        val result = step(nearRightWall, dt = 0.05f)
+        assertTrue(result.state.ball.x <= Court.WIDTH - Court.BALL_RADIUS + 0.0001f, "clamped to inside the wall")
+        assertTrue(result.state.ball.vx < 0f, "should bounce back inward")
+    }
+
+    @Test
+    fun `the ball bounces off an invisible ceiling instead of leaving the top of the court`() {
+        val nearCeiling = stillState(ballX = clearOfBlobsPlayerSideX, ballY = Court.CEILING_Y - 0.001f)
+            .let { it.copy(ball = it.ball.copy(vy = 0.9f)) }
+        val result = step(nearCeiling, dt = 0.05f)
+        assertTrue(result.state.ball.y <= Court.CEILING_Y + 0.0001f, "clamped to inside the ceiling")
+        assertTrue(result.state.ball.vy < 0f, "should bounce back down")
+    }
+
+    @Test
+    fun `a hit's speed is capped so it can't rocket off the top of the court`() {
+        val fastIncoming = stillState(ballX = Court.PLAYER_HOME_X, ballY = Court.BLOB_RADIUS)
+            .let { it.copy(ball = it.ball.copy(vy = -5f)) }
+        val result = step(fastIncoming, dt = 0.01f)
+        assertTrue(result.events.playerHit)
+        val speed = kotlin.math.hypot(result.state.ball.vx, result.state.ball.vy)
+        assertTrue(speed <= Court.MAX_HIT_SPEED + 0.0001f, "hit speed should be capped at MAX_HIT_SPEED")
     }
 }

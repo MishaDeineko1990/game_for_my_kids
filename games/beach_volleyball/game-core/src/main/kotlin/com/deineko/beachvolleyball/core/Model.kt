@@ -14,18 +14,34 @@ object Court {
     const val BALL_RADIUS = 0.035f
     const val BLOB_RADIUS = 0.09f
 
-    // Gentler than the first pass at this rewrite -- "the ball flies too fast" feedback led to
-    // lowering gravity/speeds together (jump height ~= v^2/(2*g) is kept roughly the same) rather
-    // than only relying on the BallSpeed setting to compensate.
-    const val GRAVITY = 1.6f
-    const val JUMP_VELOCITY = 0.95f
-    const val BLOB_MOVE_SPEED = 1.6f
-    const val NET_RESTITUTION = 0.6f
-    const val MIN_HIT_SPEED = 0.65f
+    // Tuned down again after "the ball flies too fast/high" feedback: gravity, jump and hit speeds
+    // moved together (so jump height keeps roughly the same feel) plus a hard MAX_HIT_SPEED cap so
+    // no single hit -- however it was struck, even a jump-boosted spike -- can launch the ball as
+    // violently as before. A real hard ceiling bounce (below) is what actually guarantees it can
+    // never leave the top of the court, since jump velocity still stacks on top of a hit's speed.
+    const val GRAVITY = 1.3f
+    const val JUMP_VELOCITY = 0.85f
+    const val NET_RESTITUTION = 0.55f
+    const val WALL_RESTITUTION = 0.65f
+    const val CEILING_RESTITUTION = 0.6f
+    const val MIN_HIT_SPEED = 0.5f
+    const val MAX_HIT_SPEED = 1.1f
 
     const val PLAYER_HOME_X = WIDTH * 0.25f
     const val OPPONENT_HOME_X = WIDTH * 0.75f
-    const val SERVE_HEIGHT = 0.9f
+
+    // The serve no longer just drops from a height -- it hovers motionless until the serving side
+    // jumps up and heads it into play, so kids get one clear "go hit it" moment instead of reacting
+    // to an already-falling ball. Set above a grounded blob's own standing reach (which tops out
+    // around BALL_RADIUS + BLOB_RADIUS =~ 0.125) but within a jump's reach, so a jump is required
+    // but the timing window is forgiving.
+    const val SERVE_HOVER_HEIGHT = 0.32f
+
+    // Invisible ceiling the ball bounces off so an enthusiastic spike can never fly out the top of
+    // the visible court. PLAY_AREA_HEIGHT is what the UI frames its camera to, with headroom above
+    // the ceiling so a bounce there is still clearly visible.
+    const val CEILING_Y = 0.85f
+    const val PLAY_AREA_HEIGHT = CEILING_Y + 0.15f
 
     /** First to reach this wins outright -- ping-pong-style "game to eleven", no win-by-2 deuce
      *  rule, since the target players are 3-5..8 years old and a long deuce would just be
@@ -34,7 +50,7 @@ object Court {
 
     fun serveBall(side: Side): BallState {
         val x = if (side == Side.PLAYER) PLAYER_HOME_X else OPPONENT_HOME_X
-        return BallState(x = x, y = SERVE_HEIGHT, vx = 0f, vy = 0f)
+        return BallState(x = x, y = SERVE_HOVER_HEIGHT, vx = 0f, vy = 0f)
     }
 
     fun homeBlob(side: Side): BlobState {
@@ -60,10 +76,10 @@ data class BlobState(val x: Float, val y: Float, val vy: Float) {
 }
 
 /** What a player (local finger-drag input or a network peer) wants their blob to do this frame.
- *  `targetX` is an absolute court x the blob should chase (at a capped speed, not teleport --
- *  see [BeachVolleyballEngine]) -- `null` means no input yet, stay put. Drag-to-move maps a
- *  finger's screen position straight to `targetX` every frame, which is what makes movement feel
- *  like direct 1:1 dragging even though the blob technically still walks toward it. */
+ *  `targetX` is an absolute court x the blob moves straight to this frame -- finger position IS
+ *  blob position, no speed cap to "catch up" to. A capped chase-the-target version of this used to
+ *  exist but read as laggy/unresponsive once tested on a real device, so movement is now a direct
+ *  1:1 mapping (see [BeachVolleyballEngine]). `null` means no input yet, stay put. */
 data class BlobInput(val targetX: Float?, val jump: Boolean) {
     companion object {
         val NONE = BlobInput(targetX = null, jump = false)
@@ -78,6 +94,10 @@ data class MatchState(
     val opponentScore: Int = 0,
     val serving: Side = Side.PLAYER,
     val isFinished: Boolean = false,
+    // Defaults to false so any state built directly (as most tests do) gets ordinary, always-
+    // falling ball physics; only a fresh serve (`initial()` and the post-score reset in
+    // BeachVolleyballEngine) explicitly opts into "hovering, wait for a hit".
+    val servePending: Boolean = false,
 ) {
     /** Flips the match so the side that was "opponent" renders as "player" -- used by a joined
      *  (non-hosting) device, which always sees its own blob on its preferred side of its screen. */
@@ -96,6 +116,7 @@ data class MatchState(
             player = Court.homeBlob(Side.PLAYER),
             opponent = Court.homeBlob(Side.OPPONENT),
             serving = serving,
+            servePending = true,
         )
     }
 }

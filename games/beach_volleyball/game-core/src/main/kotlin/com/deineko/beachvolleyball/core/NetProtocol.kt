@@ -25,6 +25,7 @@ object NetProtocol {
             p.x, p.y, p.vy,
             o.x, o.y, o.vy,
             state.playerScore, state.opponentScore, state.serving.name, state.isFinished,
+            state.servePending,
         ).joinToString(",").toByteArray()
     }
 
@@ -49,6 +50,7 @@ object NetProtocol {
                     opponentScore = parts[12].toInt(),
                     serving = Side.valueOf(parts[13]),
                     isFinished = parts[14].toBoolean(),
+                    servePending = parts[15].toBoolean(),
                 ),
             )
             else -> null

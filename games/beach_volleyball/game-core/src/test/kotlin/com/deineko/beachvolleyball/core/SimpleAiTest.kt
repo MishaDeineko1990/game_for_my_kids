@@ -1,7 +1,6 @@
 package com.deineko.beachvolleyball.core
 
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -11,9 +10,25 @@ class SimpleAiTest {
     private fun blobAt(x: Float, y: Float = Court.GROUND_Y) = BlobState(x = x, y = y, vy = 0f)
 
     @Test
-    fun `always targets the ball's x position`() {
-        val decision = SimpleAi.decide(blobAt(Court.OPPONENT_HOME_X), ballAt(Court.WIDTH - 0.05f))
-        assertEquals(Court.WIDTH - 0.05f, decision.targetX)
+    fun `tracks the ball's x position closely`() {
+        val decision = SimpleAi.decide(blobAt(Court.OPPONENT_HOME_X), ballAt(0.7f))
+        assertTrue(decision.targetX != null && kotlin.math.abs(decision.targetX - 0.7f) < 0.05f)
+    }
+
+    @Test
+    fun `aims slightly off-center instead of dead-centered under the ball`() {
+        // A hit dead-center under the ball bounces it straight up off the blob's head forever
+        // (the real bug this was tuned to fix) -- the AI should always stand a little to the
+        // ball's far side (away from the net) so its hits naturally angle back over the net.
+        val decision = SimpleAi.decide(blobAt(Court.OPPONENT_HOME_X), ballAt(0.7f))
+        assertTrue(decision.targetX!! > 0.7f, "should aim past the ball, not exactly onto it")
+        assertTrue(decision.targetX - 0.7f < 0.16f, "the offset should still be small enough to track the ball")
+    }
+
+    @Test
+    fun `jumps to serve a held ball even though it isn't descending`() {
+        val decision = SimpleAi.decide(blobAt(0.7f), ballAt(0.7f, y = 0.2f, vy = 0f), servePending = true)
+        assertTrue(decision.jump, "a pending serve never 'descends' -- servePending alone should trigger the jump")
     }
 
     @Test
