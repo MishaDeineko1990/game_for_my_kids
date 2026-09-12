@@ -1,9 +1,9 @@
 {
   "hub": {
-    "versionCode": 1,
-    "versionName": "1.0.0",
-    "apkUrl": null,
-    "notes": "Перший випуск: Kids games + Color Block (100 рівнів)."
+    "versionCode": 2,
+    "versionName": "1.1.0",
+    "apkUrl": "https://github.com/MishaDeineko1990/game_for_my_kids/releases/download/hub-v1.1.0/hub-debug.apk",
+    "notes": "Додано другу гру: Пляжний волейбол (проти ПК або друга по Bluetooth)."
   },
   "games": [
     {
