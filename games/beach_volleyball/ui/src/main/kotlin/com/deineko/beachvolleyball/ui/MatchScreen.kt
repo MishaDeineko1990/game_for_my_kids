@@ -132,12 +132,19 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
             ballSpinDeg += (abs(matchState.ball.vx) + abs(matchState.ball.vy)) * dt * 220f
 
             if (isAuthoritative) {
+                // Read the live State values here, inside the loop, rather than closing over the
+                // `localInput` computed at the top of this composable: this LaunchedEffect is
+                // keyed on `mode`, which never changes during a match, so it launches once and
+                // keeps running -- a value merely *read* at launch time would stay frozen at
+                // whatever it was on the very first frame (no drag, no jump) forever, which is
+                // exactly the "controls don't do anything" bug a real device caught.
+                val frameInput = BlobInput(targetX = localTargetX, jump = jumpPressed)
                 val opponentInput = if (mode is MatchMode.VsPc) {
                     SimpleAi.decide(matchState.opponent, matchState.ball)
                 } else {
                     latestOpponentInput
                 }
-                val result = BeachVolleyballEngine.step(matchState, dt, localInput, opponentInput, speed)
+                val result = BeachVolleyballEngine.step(matchState, dt, frameInput, opponentInput, speed)
                 matchState = result.state
                 if (result.events.playerHit || result.events.opponentHit) soundEngine.playHit()
                 if (result.events.scored) {
