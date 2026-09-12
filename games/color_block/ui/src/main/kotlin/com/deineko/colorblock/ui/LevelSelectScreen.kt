@@ -41,7 +41,11 @@ private val WorldColors = listOf(
 private fun worldColor(levelId: Int): Color = WorldColors[((levelId - 1) / 10).coerceIn(0, WorldColors.lastIndex)]
 
 @Composable
-fun LevelSelectScreen(totalLevels: Int, onLevelSelected: (Int) -> Unit) {
+fun LevelSelectScreen(
+    totalLevels: Int,
+    onLevelSelected: (Int) -> Unit,
+    onExitToHub: (() -> Unit)? = null,
+) {
     val context = LocalContext.current
     val store = remember { ProgressStore(context) }
     var highestUnlocked by remember { mutableIntStateOf(store.highestUnlocked()) }
@@ -52,13 +56,23 @@ fun LevelSelectScreen(totalLevels: Int, onLevelSelected: (Int) -> Unit) {
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(top = 24.dp)) {
-        Text(
-            text = "Color Block",
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
-            textAlign = TextAlign.Center,
-        )
+        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+            if (onExitToHub != null) {
+                Text(
+                    text = "← Ігри",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.align(Alignment.CenterStart).clickable(onClick = onExitToHub),
+                )
+            }
+            Text(
+                text = "Color Block",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+            )
+        }
         Text(
             text = "Обери рівень",
             style = MaterialTheme.typography.bodyMedium,

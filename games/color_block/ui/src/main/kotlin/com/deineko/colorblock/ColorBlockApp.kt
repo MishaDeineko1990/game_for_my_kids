@@ -19,7 +19,7 @@ private const val ROUTE_LEVELS = "levels"
 private const val ROUTE_GAME = "game/{levelId}"
 
 @Composable
-fun ColorBlockApp() {
+fun ColorBlockApp(onExitToHub: () -> Unit = {}) {
     val navController = rememberNavController()
     Surface(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         NavHost(navController = navController, startDestination = ROUTE_LEVELS) {
@@ -27,6 +27,7 @@ fun ColorBlockApp() {
                 LevelSelectScreen(
                     totalLevels = ALL_LEVELS.size,
                     onLevelSelected = { levelId -> navController.navigate("game/$levelId") },
+                    onExitToHub = onExitToHub,
                 )
             }
             composable(

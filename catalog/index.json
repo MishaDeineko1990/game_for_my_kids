@@ -1,0 +1,16 @@
+{
+  "hub": {
+    "versionCode": 1,
+    "versionName": "1.0.0",
+    "apkUrl": null,
+    "notes": "Перший випуск: Kids games + Color Block (100 рівнів)."
+  },
+  "games": [
+    {
+      "id": "color_block",
+      "title": "Color Block",
+      "description": "Виведи кольорові кубики за межі поля",
+      "contentVersion": 1
+    }
+  ]
+}

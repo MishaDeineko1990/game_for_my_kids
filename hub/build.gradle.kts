@@ -4,15 +4,15 @@ plugins {
 }
 
 android {
-    namespace = "com.deineko.colorblock"
+    namespace = "com.deineko.kidsgames"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.deineko.colorblock"
+        applicationId = "com.deineko.kidsgames"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
     }
 
     buildTypes {
@@ -31,15 +31,18 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
 dependencies {
-    implementation(project(":game-core"))
+    implementation(project(":games:color_block:ui"))
+    implementation(project(":games:color_block:game-core"))
 
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.activity.compose)
+    implementation(libs.kotlinx.coroutines.android)
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.graphics)

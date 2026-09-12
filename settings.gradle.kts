@@ -14,7 +14,8 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "color_block"
+rootProject.name = "game_for_my_kids"
 
-include(":app")
-include(":game-core")
+include(":hub")
+include(":games:color_block:game-core")
+include(":games:color_block:ui")
