@@ -154,11 +154,13 @@ private fun GameCard(game: GameInfo, installed: Boolean, onPlay: () -> Unit, onT
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(
-                    text = "${game.levelCount} рівнів",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+                if (game.levelCount > 0) {
+                    Text(
+                        text = "${game.levelCount} рівнів",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
         }
         Spacer(modifier = Modifier.height(12.dp))

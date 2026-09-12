@@ -1,6 +1,7 @@
 package com.deineko.kidsgames.games
 
 import androidx.compose.runtime.Composable
+import com.deineko.beachvolleyball.BeachVolleyballApp
 import com.deineko.colorblock.ColorBlockApp
 import com.deineko.colorblock.core.ALL_LEVELS
 
@@ -24,12 +25,20 @@ object GameRegistry {
             levelCount = ALL_LEVELS.size,
             accent = 0xFF57C6B4,
         ),
+        GameInfo(
+            id = "beach_volleyball",
+            title = "Пляжний волейбол",
+            description = "Перебивайте м'ячик через сітку -- проти комп'ютера або друга",
+            levelCount = 0,
+            accent = 0xFFFF6F59,
+        ),
     )
 
     @Composable
     fun Launch(id: String, onExit: () -> Unit) {
         when (id) {
             "color_block" -> ColorBlockApp(onExitToHub = onExit)
+            "beach_volleyball" -> BeachVolleyballApp(onExitToHub = onExit)
         }
     }
 }

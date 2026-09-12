@@ -11,6 +11,12 @@
       "title": "Color Block",
       "description": "Виведи кольорові кубики за межі поля",
       "contentVersion": 1
+    },
+    {
+      "id": "beach_volleyball",
+      "title": "Пляжний волейбол",
+      "description": "Перебивайте м'ячик через сітку -- проти комп'ютера або друга по Bluetooth",
+      "contentVersion": 1
     }
   ]
 }
