@@ -40,8 +40,17 @@ object Court {
     // Invisible ceiling the ball bounces off so an enthusiastic spike can never fly out the top of
     // the visible court. PLAY_AREA_HEIGHT is what the UI frames its camera to, with headroom above
     // the ceiling so a bounce there is still clearly visible.
-    const val CEILING_Y = 0.85f
-    const val PLAY_AREA_HEIGHT = CEILING_Y + 0.15f
+    //
+    // Kept low on purpose: the camera fits Court.WIDTH (1.0, always) to the screen's actual width
+    // *and* PLAY_AREA_HEIGHT to its height, then uses whichever produces the smaller scale (see
+    // MatchScreen's computeCourtMetrics) -- on a landscape phone that's almost always far wider
+    // than it is tall (16:9 = 1.78 and up), so as long as PLAY_AREA_HEIGHT/WIDTH stays under that
+    // ratio, the width is what binds and the court fills edge to edge with no side gutters. The
+    // previous value (1.0) was tall enough that height bound instead on ordinary phones, leaving
+    // the actual playable court a narrow strip in the middle of the screen -- reported as "play
+    // only happens from the net to half the shown field".
+    const val CEILING_Y = 0.42f
+    const val PLAY_AREA_HEIGHT = 0.5f
 
     /** First to reach this wins outright -- ping-pong-style "game to eleven", no win-by-2 deuce
      *  rule, since the target players are 3-5..8 years old and a long deuce would just be
@@ -62,11 +71,13 @@ object Court {
 enum class Side { PLAYER, OPPONENT }
 
 /** Scales the whole simulation's time step -- lets "how fast everything moves" be a single knob
- *  in settings without touching gravity/speed constants. */
+ *  in settings without touching gravity/speed constants. Values are 20% lower than they used to
+ *  be (again) after "the ball is still too fast" feedback -- this scales real-world seconds, so it
+ *  slows the ball and both blobs' motion uniformly without changing trajectory shapes. */
 enum class BallSpeed(val timeScale: Float) {
-    SLOW(0.6f),
-    NORMAL(1f),
-    FAST(1.4f),
+    SLOW(0.48f),
+    NORMAL(0.8f),
+    FAST(1.12f),
 }
 
 data class BallState(val x: Float, val y: Float, val vx: Float, val vy: Float)

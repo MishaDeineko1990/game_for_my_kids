@@ -53,7 +53,7 @@ object GameRegistry {
             accent = 0xFFFF6F59,
             ageGroup = AgeGroup.KID,
             category = GameCategory.SPORTS,
-            bundledVersion = 5,
+            bundledVersion = 6,
         ),
     )
 

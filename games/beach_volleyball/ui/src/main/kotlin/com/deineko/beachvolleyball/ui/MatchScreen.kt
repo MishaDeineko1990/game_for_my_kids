@@ -171,6 +171,12 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
                                 .courtXFromScreenX(offset.x)
                         },
                         onDrag = { change, _ ->
+                            // Consuming the change matters on some devices/OEM skins: an
+                            // unconsumed pointer event can still be claimed by a system-level
+                            // gesture recognizer (e.g. an edge-swipe back gesture), which cancels
+                            // the drag mid-stream -- a plausible cause of "controls don't respond"
+                            // reports that only showed up on some phones, not others.
+                            change.consume()
                             localTargetX = computeCourtMetrics(size.width.toFloat(), size.height.toFloat())
                                 .courtXFromScreenX(change.position.x)
                         },
