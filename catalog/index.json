@@ -1,9 +1,9 @@
 {
   "hub": {
-    "versionCode": 2,
-    "versionName": "1.1.0",
-    "apkUrl": "https://github.com/MishaDeineko1990/game_for_my_kids/releases/download/hub-v1.1.0/hub-debug.apk",
-    "notes": "Додано другу гру: Пляжний волейбол (проти ПК або друга по Bluetooth)."
+    "versionCode": 3,
+    "versionName": "1.2.0",
+    "apkUrl": "https://github.com/MishaDeineko1990/game_for_my_kids/releases/download/hub-v1.2.0/hub-debug.apk",
+    "notes": "Виправлено перевірку оновлень, додано налаштування та фільтри в сторі."
   },
   "games": [
     {
