@@ -1,6 +1,7 @@
 package com.deineko.kidsgames.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,9 +18,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,6 +34,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -38,6 +42,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.deineko.kidsgames.catalog.Catalog
 import com.deineko.kidsgames.catalog.CatalogRepository
+import com.deineko.kidsgames.games.AgeGroup
+import com.deineko.kidsgames.games.GameCategory
 import com.deineko.kidsgames.games.GameInfo
 import com.deineko.kidsgames.games.GameRegistry
 import com.deineko.kidsgames.installed.InstalledGamesStore
@@ -46,35 +52,55 @@ import com.deineko.kidsgames.update.UpdateState
 import kotlinx.coroutines.launch
 
 @Composable
-fun HomeScreen(onPlay: (String) -> Unit) {
+fun HomeScreen(onPlay: (String) -> Unit, onSettings: () -> Unit) {
     val context = LocalContext.current
     val installedStore = remember { InstalledGamesStore(context) }
     val updateManager = remember { UpdateManager(context) }
     val scope = rememberCoroutineScope()
 
     var catalog by remember { mutableStateOf<Catalog?>(null) }
-    var updateState by remember { mutableStateOf<UpdateState>(UpdateState.UpToDate) }
+    var updateState by remember { mutableStateOf<UpdateState>(UpdateState.Idle) }
     val installedState = remember {
         mutableStateMapOf<String, Boolean>().apply {
             GameRegistry.games.forEach { put(it.id, installedStore.isInstalled(it.id)) }
         }
     }
 
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedAgeGroup by remember { mutableStateOf<AgeGroup?>(null) }
+    var selectedCategory by remember { mutableStateOf<GameCategory?>(null) }
+
     LaunchedEffect(Unit) {
-        catalog = CatalogRepository.fetch()
-        val hubInfo = catalog?.hub
-        if (hubInfo != null && updateManager.isNewer(hubInfo)) {
-            updateState = UpdateState.Available(hubInfo)
-        }
+        val fetched = CatalogRepository.fetch()
+        catalog = fetched
+        updateState = updateManager.evaluate(fetched)
+    }
+
+    val filteredGames = GameRegistry.games.filter { game ->
+        (selectedAgeGroup == null || game.ageGroup == selectedAgeGroup) &&
+            (selectedCategory == null || game.category == selectedCategory) &&
+            (searchQuery.isBlank() || game.title.contains(searchQuery, ignoreCase = true))
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxWidth().padding(20.dp, 28.dp, 20.dp, 8.dp)) {
-            Text("Kids games", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(20.dp, 28.dp, 20.dp, 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top,
+        ) {
+            Column {
+                Text("Kids games", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Text(
+                    text = "Ігри для наших малят",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
-                text = "Ігри для наших малят",
-                style = MaterialTheme.typography.bodyMedium,
+                text = "⚙",
+                style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.clickable(onClick = onSettings),
             )
         }
 
@@ -103,28 +129,84 @@ fun HomeScreen(onPlay: (String) -> Unit) {
             is UpdateState.Failed -> Text(
                 text = state.message,
                 color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
             )
             else -> Unit
         }
 
-        LazyColumn(
-            contentPadding = PaddingValues(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            modifier = Modifier.fillMaxSize(),
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            placeholder = { Text("Пошук гри...") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(GameRegistry.games) { game ->
-                val installed = installedState[game.id] ?: true
-                GameCard(
-                    game = game,
-                    installed = installed,
-                    onPlay = { onPlay(game.id) },
-                    onToggleInstalled = {
-                        val next = !installed
-                        installedStore.setInstalled(game.id, next)
-                        installedState[game.id] = next
-                    },
+            FilterChip(
+                selected = selectedAgeGroup == null,
+                onClick = { selectedAgeGroup = null },
+                label = { Text("Усі віки") },
+            )
+            AgeGroup.entries.forEach { age ->
+                FilterChip(
+                    selected = selectedAgeGroup == age,
+                    onClick = { selectedAgeGroup = if (selectedAgeGroup == age) null else age },
+                    label = { Text(age.label) },
                 )
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FilterChip(
+                selected = selectedCategory == null,
+                onClick = { selectedCategory = null },
+                label = { Text("Усі види") },
+            )
+            GameCategory.entries.forEach { category ->
+                FilterChip(
+                    selected = selectedCategory == category,
+                    onClick = { selectedCategory = if (selectedCategory == category) null else category },
+                    label = { Text(category.label) },
+                )
+            }
+        }
+
+        if (filteredGames.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize().padding(20.dp), contentAlignment = Alignment.Center) {
+                Text(
+                    text = "Нічого не знайдено",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            LazyColumn(
+                contentPadding = PaddingValues(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                items(filteredGames) { game ->
+                    val installed = installedState[game.id] ?: true
+                    GameCard(
+                        game = game,
+                        installed = installed,
+                        onPlay = { onPlay(game.id) },
+                        onToggleInstalled = {
+                            val next = !installed
+                            installedStore.setInstalled(game.id, next)
+                            installedState[game.id] = next
+                        },
+                    )
+                }
             }
         }
     }
@@ -144,11 +226,22 @@ private fun GameCard(game: GameInfo, installed: Boolean, onPlay: () -> Unit, onT
                 modifier = Modifier
                     .size(52.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Color(game.accent)),
+                    .background(Color(game.accent))
+                    .alpha(if (installed) 1f else 0.4f),
             )
             Spacer(modifier = Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(game.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Column(modifier = Modifier.weight(1f).alpha(if (installed) 1f else 0.5f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(game.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    if (!installed) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "видалено",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
                 Text(
                     text = game.description,
                     style = MaterialTheme.typography.bodySmall,

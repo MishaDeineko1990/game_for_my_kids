@@ -11,8 +11,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.deineko.kidsgames.games.GameRegistry
 import com.deineko.kidsgames.ui.HomeScreen
+import com.deineko.kidsgames.ui.SettingsScreen
 
 private const val ROUTE_HOME = "home"
+private const val ROUTE_SETTINGS = "settings"
 private const val ROUTE_GAME = "play/{gameId}"
 
 @Composable
@@ -21,7 +23,13 @@ fun HubApp() {
     Surface(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         NavHost(navController = navController, startDestination = ROUTE_HOME) {
             composable(ROUTE_HOME) {
-                HomeScreen(onPlay = { gameId -> navController.navigate("play/$gameId") })
+                HomeScreen(
+                    onPlay = { gameId -> navController.navigate("play/$gameId") },
+                    onSettings = { navController.navigate(ROUTE_SETTINGS) },
+                )
+            }
+            composable(ROUTE_SETTINGS) {
+                SettingsScreen(onBack = { navController.popBackStack() })
             }
             composable(ROUTE_GAME) { backStackEntry ->
                 val gameId = backStackEntry.arguments?.getString("gameId")

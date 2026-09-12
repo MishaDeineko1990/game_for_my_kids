@@ -7,7 +7,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 private const val CATALOG_URL =
-    "https://raw.githubusercontent.com/MishaDeineko1990/game_for_my_kids/main/catalog/index.json"
+    "https://raw.githubusercontent.com/MishaDeineko1990/game_for_my_kids/master/catalog/index.json"
 
 /** Fetches the repo-hosted game catalog. Returns null on any network/parse failure so callers
  *  can silently fall back to "no update available" when offline -- this must never crash the app. */
