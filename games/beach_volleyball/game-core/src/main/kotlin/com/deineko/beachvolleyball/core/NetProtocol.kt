@@ -11,7 +11,10 @@ object NetProtocol {
         data class StateUpdate(val state: MatchState) : Message()
     }
 
-    fun encodeInput(input: BlobInput): ByteArray = "I,${input.moveDirection},${input.jump}".toByteArray()
+    // targetX is always within [0, Court.WIDTH] when present, so -1 unambiguously means "null".
+    private const val NO_TARGET = -1f
+
+    fun encodeInput(input: BlobInput): ByteArray = "I,${input.targetX ?: NO_TARGET},${input.jump}".toByteArray()
 
     fun encodeState(state: MatchState): ByteArray {
         val b = state.ball
@@ -28,7 +31,10 @@ object NetProtocol {
     fun decode(bytes: ByteArray): Message? = runCatching {
         val parts = String(bytes).split(",")
         when (parts[0]) {
-            "I" -> Message.InputUpdate(BlobInput(moveDirection = parts[1].toInt(), jump = parts[2].toBoolean()))
+            "I" -> {
+                val targetX = parts[1].toFloat().takeIf { it >= 0f }
+                Message.InputUpdate(BlobInput(targetX = targetX, jump = parts[2].toBoolean()))
+            }
             "S" -> Message.StateUpdate(
                 MatchState(
                     ball = BallState(

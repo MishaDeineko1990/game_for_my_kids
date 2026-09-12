@@ -7,11 +7,18 @@ import kotlin.test.assertIs
 class NetProtocolTest {
 
     @Test
-    fun `input update round-trips through encode and decode`() {
-        val input = BlobInput(moveDirection = -1, jump = true)
+    fun `an input with a target x round-trips through encode and decode`() {
+        val input = BlobInput(targetX = 0.42f, jump = true)
         val decoded = NetProtocol.decode(NetProtocol.encodeInput(input))
         val message = assertIs<NetProtocol.Message.InputUpdate>(decoded)
         assertEquals(input, message.input)
+    }
+
+    @Test
+    fun `an input with no target x round-trips as null, not zero`() {
+        val decoded = NetProtocol.decode(NetProtocol.encodeInput(BlobInput.NONE))
+        val message = assertIs<NetProtocol.Message.InputUpdate>(decoded)
+        assertEquals(null, message.input.targetX)
     }
 
     private fun sampleState() = MatchState(

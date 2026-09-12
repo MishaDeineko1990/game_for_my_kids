@@ -14,11 +14,14 @@ object Court {
     const val BALL_RADIUS = 0.035f
     const val BLOB_RADIUS = 0.09f
 
-    const val GRAVITY = 2.4f
-    const val JUMP_VELOCITY = 1.15f
-    const val BLOB_MOVE_SPEED = 0.75f
+    // Gentler than the first pass at this rewrite -- "the ball flies too fast" feedback led to
+    // lowering gravity/speeds together (jump height ~= v^2/(2*g) is kept roughly the same) rather
+    // than only relying on the BallSpeed setting to compensate.
+    const val GRAVITY = 1.6f
+    const val JUMP_VELOCITY = 0.95f
+    const val BLOB_MOVE_SPEED = 1.6f
     const val NET_RESTITUTION = 0.6f
-    const val MIN_HIT_SPEED = 0.9f
+    const val MIN_HIT_SPEED = 0.65f
 
     const val PLAYER_HOME_X = WIDTH * 0.25f
     const val OPPONENT_HOME_X = WIDTH * 0.75f
@@ -56,11 +59,14 @@ data class BlobState(val x: Float, val y: Float, val vy: Float) {
     fun mirroredX(): BlobState = copy(x = Court.WIDTH - x)
 }
 
-/** What a player (local input or a network peer) wants their blob to do this frame.
- *  `moveDirection` is -1 (toward the wall), 0, or 1 (toward the net). */
-data class BlobInput(val moveDirection: Int, val jump: Boolean) {
+/** What a player (local finger-drag input or a network peer) wants their blob to do this frame.
+ *  `targetX` is an absolute court x the blob should chase (at a capped speed, not teleport --
+ *  see [BeachVolleyballEngine]) -- `null` means no input yet, stay put. Drag-to-move maps a
+ *  finger's screen position straight to `targetX` every frame, which is what makes movement feel
+ *  like direct 1:1 dragging even though the blob technically still walks toward it. */
+data class BlobInput(val targetX: Float?, val jump: Boolean) {
     companion object {
-        val NONE = BlobInput(moveDirection = 0, jump = false)
+        val NONE = BlobInput(targetX = null, jump = false)
     }
 }
 

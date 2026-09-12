@@ -31,23 +31,44 @@ class BeachVolleyballEngineTest {
 
     @Test
     fun `jumping blob rises then gravity brings it back down`() {
-        val jumped = step(stillState(), dt = 0.05f, player = BlobInput(0, jump = true))
+        val jumped = step(stillState(), dt = 0.05f, player = BlobInput(targetX = null, jump = true))
         assertTrue(jumped.state.player.y > 0f, "a jump should lift the blob off the ground")
         assertTrue(jumped.state.player.vy > 0f)
     }
 
     @Test
     fun `a grounded blob cannot jump again mid-air without landing first`() {
-        val airborne = step(stillState(), dt = 0.05f, player = BlobInput(0, jump = true)).state
-        val stillJumping = step(airborne, dt = 0.05f, player = BlobInput(0, jump = true))
+        val airborne = step(stillState(), dt = 0.05f, player = BlobInput(targetX = null, jump = true)).state
+        val stillJumping = step(airborne, dt = 0.05f, player = BlobInput(targetX = null, jump = true))
         // vy should keep decreasing under gravity, not reset to JUMP_VELOCITY, since the blob never landed.
         assertTrue(stillJumping.state.player.vy < airborne.player.vy)
     }
 
     @Test
+    fun `a null target leaves the blob in place`() {
+        val result = step(stillState(), dt = 0.5f, player = BlobInput(targetX = null, jump = false))
+        assertEquals(Court.PLAYER_HOME_X, result.state.player.x)
+    }
+
+    @Test
+    fun `a blob chases its drag target at a capped speed, not instantly`() {
+        val farTarget = (Court.PLAYER_HOME_X + 0.3f)
+        val result = step(stillState(), dt = 0.01f, player = BlobInput(targetX = farTarget, jump = false))
+        assertTrue(result.state.player.x > Court.PLAYER_HOME_X, "should move toward the target")
+        assertTrue(result.state.player.x < farTarget, "shouldn't teleport to the target in one tiny step")
+    }
+
+    @Test
+    fun `a blob reaches a nearby drag target exactly, without overshooting`() {
+        val nearTarget = Court.PLAYER_HOME_X + 0.001f
+        val result = step(stillState(), dt = 0.1f, player = BlobInput(targetX = nearTarget, jump = false))
+        assertEquals(nearTarget, result.state.player.x)
+    }
+
+    @Test
     fun `moving toward the net is blocked at the net`() {
         val nearNet = stillState(playerX = Court.NET_X - Court.NET_HALF_WIDTH - Court.BLOB_RADIUS)
-        val result = step(nearNet, dt = 1f, player = BlobInput(moveDirection = 1, jump = false))
+        val result = step(nearNet, dt = 1f, player = BlobInput(targetX = Court.WIDTH, jump = false))
         assertTrue(result.state.player.x <= Court.NET_X - Court.NET_HALF_WIDTH - Court.BLOB_RADIUS + 0.0001f)
     }
 

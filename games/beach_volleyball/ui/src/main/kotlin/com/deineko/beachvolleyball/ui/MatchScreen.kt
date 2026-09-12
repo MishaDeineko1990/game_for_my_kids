@@ -3,6 +3,7 @@ package com.deineko.beachvolleyball.ui
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -39,6 +41,7 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.deineko.beachvolleyball.core.BallState
 import com.deineko.beachvolleyball.core.BeachVolleyballEngine
@@ -50,6 +53,8 @@ import com.deineko.beachvolleyball.core.NetProtocol
 import com.deineko.beachvolleyball.core.SimpleAi
 import com.deineko.connect.GameConnection
 import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlinx.coroutines.isActive
 
 sealed class MatchMode {
@@ -66,6 +71,7 @@ private const val COURT_VISUAL_HEIGHT = Court.SERVE_HEIGHT + 0.3f
 private data class CourtMetrics(val originX: Float, val groundY: Float, val scale: Float) {
     fun screenX(courtX: Float) = originX + courtX * scale
     fun screenY(courtY: Float) = groundY - courtY * scale
+    fun courtXFromScreenX(screenX: Float) = ((screenX - originX) / scale).coerceIn(0f, Court.WIDTH)
 }
 
 private fun computeCourtMetrics(canvasWidth: Float, canvasHeight: Float): CourtMetrics {
@@ -89,20 +95,12 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
     val isAuthoritative = mode is MatchMode.VsPc || mode is MatchMode.Host
 
     var matchState by remember { mutableStateOf(MatchState.initial()) }
-    var leftPressed by remember { mutableStateOf(false) }
-    var rightPressed by remember { mutableStateOf(false) }
+    var localTargetX by remember { mutableStateOf<Float?>(null) }
     var jumpPressed by remember { mutableStateOf(false) }
     var ballSpinDeg by remember { mutableFloatStateOf(0f) }
     var latestOpponentInput by remember { mutableStateOf(BlobInput.NONE) }
 
-    val localInput = BlobInput(
-        moveDirection = when {
-            leftPressed && !rightPressed -> -1
-            rightPressed && !leftPressed -> 1
-            else -> 0
-        },
-        jump = jumpPressed,
-    )
+    val localInput = BlobInput(targetX = localTargetX, jump = jumpPressed)
 
     if (connection != null) {
         LaunchedEffect(connection) {
@@ -152,9 +150,25 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
 
     val renderState = matchState
 
-    Box(modifier = Modifier.fillMaxSize().background(BeachPalette.skyBottom)) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            localTargetX = computeCourtMetrics(size.width.toFloat(), size.height.toFloat())
+                                .courtXFromScreenX(offset.x)
+                        },
+                        onDrag = { change, _ ->
+                            localTargetX = computeCourtMetrics(size.width.toFloat(), size.height.toFloat())
+                                .courtXFromScreenX(change.position.x)
+                        },
+                    )
+                },
+        ) {
             val metrics = computeCourtMetrics(size.width, size.height)
+            drawBackground(size.width, size.height, metrics)
             drawCourt(metrics, size.width)
             drawBlob(metrics, renderState.opponent, BeachPalette.opponentBody)
             drawBlob(metrics, renderState.player, BeachPalette.playerBody)
@@ -192,14 +206,6 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
                 },
         )
 
-        Row(
-            modifier = Modifier.align(Alignment.BottomStart).padding(20.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            ControlButton(label = "◀", pressed = leftPressed, onPressChange = { leftPressed = it })
-            ControlButton(label = "▶", pressed = rightPressed, onPressChange = { rightPressed = it })
-        }
-
         ControlButton(
             label = "⤒",
             pressed = jumpPressed,
@@ -228,7 +234,7 @@ private fun ControlButton(
     pressed: Boolean,
     onPressChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    size: androidx.compose.ui.unit.Dp = 64.dp,
+    size: Dp = 64.dp,
 ) {
     Box(
         modifier = modifier
@@ -277,6 +283,72 @@ private fun ResultOverlay(playerWon: Boolean, canRematch: Boolean, onRematch: ()
                 OutlinedButton(onClick = onExit) { Text("До ігор") }
             }
         }
+    }
+}
+
+private fun DrawScope.drawBackground(canvasWidth: Float, canvasHeight: Float, metrics: CourtMetrics) {
+    val horizonY = metrics.groundY - (metrics.groundY) * 0.42f
+    val seaTopY = horizonY
+    drawRect(
+        brush = Brush.verticalGradient(
+            colors = listOf(BeachPalette.skyTop, BeachPalette.skyHorizon),
+            startY = 0f,
+            endY = horizonY,
+        ),
+        topLeft = Offset(0f, 0f),
+        size = Size(canvasWidth, horizonY),
+    )
+    drawRect(
+        brush = Brush.verticalGradient(
+            colors = listOf(BeachPalette.seaFar, BeachPalette.seaNear),
+            startY = seaTopY,
+            endY = metrics.groundY,
+        ),
+        topLeft = Offset(0f, seaTopY),
+        size = Size(canvasWidth, metrics.groundY - seaTopY),
+    )
+    val waveSteps = 3
+    for (i in 1..waveSteps) {
+        val y = seaTopY + (metrics.groundY - seaTopY) * (i / (waveSteps + 1f))
+        drawLine(
+            color = BeachPalette.seaWave,
+            start = Offset(0f, y),
+            end = Offset(canvasWidth, y),
+            strokeWidth = 2f,
+        )
+    }
+
+    val palmHeight = canvasHeight * 0.4f
+    drawPalm(baseX = canvasWidth * 0.04f, baseY = metrics.groundY, height = palmHeight, mirrored = false)
+    drawPalm(baseX = canvasWidth * 0.96f, baseY = metrics.groundY, height = palmHeight * 0.85f, mirrored = true)
+}
+
+private fun DrawScope.drawPalm(baseX: Float, baseY: Float, height: Float, mirrored: Boolean) {
+    val dir = if (mirrored) -1f else 1f
+    val topX = baseX + dir * height * 0.22f
+    val topY = baseY - height
+    drawLine(
+        color = BeachPalette.palmTrunk,
+        start = Offset(baseX, baseY),
+        end = Offset(topX, topY),
+        strokeWidth = height * 0.05f,
+        cap = StrokeCap.Round,
+    )
+    // Fronds fan out from the trunk's top, angle measured from straight up (0deg) so the fan
+    // is naturally symmetric regardless of which way the trunk itself leans.
+    val frondLength = height * 0.5f
+    val anglesFromVerticalDeg = listOf(-70f, -35f, 0f, 35f, 70f)
+    for (angleDeg in anglesFromVerticalDeg) {
+        val rad = Math.toRadians(angleDeg.toDouble())
+        val dx = sin(rad).toFloat() * frondLength
+        val dy = -cos(rad).toFloat() * frondLength
+        drawLine(
+            color = BeachPalette.palmLeaf,
+            start = Offset(topX, topY),
+            end = Offset(topX + dx, topY + dy),
+            strokeWidth = height * 0.045f,
+            cap = StrokeCap.Round,
+        )
     }
 }
 

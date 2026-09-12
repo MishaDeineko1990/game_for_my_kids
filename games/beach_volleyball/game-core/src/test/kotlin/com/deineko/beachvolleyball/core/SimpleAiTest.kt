@@ -11,15 +11,9 @@ class SimpleAiTest {
     private fun blobAt(x: Float, y: Float = Court.GROUND_Y) = BlobState(x = x, y = y, vy = 0f)
 
     @Test
-    fun `moves toward the ball's x position`() {
+    fun `always targets the ball's x position`() {
         val decision = SimpleAi.decide(blobAt(Court.OPPONENT_HOME_X), ballAt(Court.WIDTH - 0.05f))
-        assertEquals(1, decision.moveDirection, "ball is to the right, should move right")
-    }
-
-    @Test
-    fun `does not move when already under the ball`() {
-        val decision = SimpleAi.decide(blobAt(0.6f), ballAt(0.605f))
-        assertEquals(0, decision.moveDirection, "a delta smaller than the dead zone should not move the blob")
+        assertEquals(Court.WIDTH - 0.05f, decision.targetX)
     }
 
     @Test

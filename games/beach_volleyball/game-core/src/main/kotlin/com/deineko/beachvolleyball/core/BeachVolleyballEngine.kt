@@ -87,7 +87,13 @@ object BeachVolleyballEngine {
             minX = Court.NET_X + Court.NET_HALF_WIDTH + Court.BLOB_RADIUS
             maxX = Court.WIDTH - Court.BLOB_RADIUS
         }
-        val x = (blob.x + input.moveDirection * Court.BLOB_MOVE_SPEED * dt).coerceIn(minX, maxX)
+        val x = if (input.targetX != null) {
+            val target = input.targetX.coerceIn(minX, maxX)
+            val step = Court.BLOB_MOVE_SPEED * dt
+            (blob.x + (target - blob.x).coerceIn(-step, step))
+        } else {
+            blob.x
+        }.coerceIn(minX, maxX)
 
         val grounded = blob.y <= Court.GROUND_Y
         val vy = if (grounded && input.jump) Court.JUMP_VELOCITY else blob.vy - Court.GRAVITY * dt
