@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "bash \"${CLAUDE_PROJECT_DIR}/vault/.claude/hooks/orchestration-doctor.sh\"" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "bash \"${CLAUDE_PROJECT_DIR}/vault/.claude/hooks/vault-sync.sh\"" }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "bash \"${CLAUDE_PROJECT_DIR}/vault/.claude/hooks/version-check.sh\"" }
+        ]
+      }
+    ]
+  }
+}
