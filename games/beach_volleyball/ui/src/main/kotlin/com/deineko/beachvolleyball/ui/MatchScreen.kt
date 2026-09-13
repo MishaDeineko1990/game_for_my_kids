@@ -193,14 +193,26 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
         }
 
         Row(
-            modifier = Modifier.fillMaxSize().padding(20.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 16.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color(0x99000000))
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
                 text = "${renderState.playerScore}",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = BeachPalette.playerBody,
+            )
+            Text(
+                text = ":",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
             )
             Text(
                 text = "${renderState.opponentScore}",
@@ -216,7 +228,7 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = BeachPalette.playerBody,
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 52.dp),
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 68.dp),
             )
         }
 
@@ -225,8 +237,8 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 20.dp)
+                .align(Alignment.TopStart)
+                .padding(top = 20.dp, start = 20.dp)
                 .clickable {
                     connection?.stop()
                     onExit()
