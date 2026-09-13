@@ -25,4 +25,5 @@ object BeachPalette {
     val controlButton = Color(0xCCFFFFFF)
     val controlButtonPressed = Color(0xFFFFFFFF)
     val controlGlyph = Color(0xFF2B2620)
+    val balloonString = Color(0xFFF7F2E7)
 }

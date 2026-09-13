@@ -92,6 +92,14 @@ data class BlobState(val x: Float, val y: Float, val vy: Float) {
  *  exist but read as laggy/unresponsive once tested on a real device, so movement is now a direct
  *  1:1 mapping (see [BeachVolleyballEngine]). `null` means no input yet, stay put. */
 data class BlobInput(val targetX: Float?, val jump: Boolean) {
+    /** Flips a court-x target to the other side -- a joining client always drags in "my blob is on
+     *  the left" screen terms (it renders its own [MatchState.mirrored] blob there), but the host
+     *  applies that input unmirrored to its actual OPPONENT-side blob, which lives on the right.
+     *  Sending the raw target pins the client's blob uselessly against the net forever, since it
+     *  always clamps to the near edge of the opponent's [BeachVolleyballEngine] movement range --
+     *  the client must mirror it before it goes over the wire. */
+    fun mirroredX(): BlobInput = copy(targetX = targetX?.let { Court.WIDTH - it })
+
     companion object {
         val NONE = BlobInput(targetX = null, jump = false)
     }

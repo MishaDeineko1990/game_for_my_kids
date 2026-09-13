@@ -22,8 +22,9 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Wraps Google Nearby Connections (P2P_STAR: exactly one host, one joiner -- all a two-player
- * game needs) behind a tiny host/join/send/messages surface. Auto-accepts the first incoming
+ * Wraps Google Nearby Connections (P2P_POINT_TO_POINT: exactly one host, one joiner -- all a
+ * two-player game needs, and the strategy Nearby documents as giving the best throughput/latency
+ * for a strict 1:1 link) behind a tiny host/join/send/messages surface. Auto-accepts the first incoming
  * connection with no pairing-code confirmation screen, since the target players can't read one --
  * this is a "nearby + running the same game" trust model, not a security boundary, and is fine for
  * a casual local kids' game. Every game reuses this same class; `gameId` scopes discovery so two
@@ -84,7 +85,17 @@ class NearbyGameConnection(context: Context) : GameConnection {
     override fun host(gameId: String, displayName: String) {
         outgoingName = displayName
         _state.value = ConnectionState.Hosting
-        val options = AdvertisingOptions.Builder().setStrategy(Strategy.P2P_STAR).build()
+        // P2P_POINT_TO_POINT (not P2P_STAR): this is always exactly two devices, never one host
+        // with several joiners, so the strict 1:1 strategy is both the semantically correct choice
+        // and the one Nearby documents as giving the best throughput/latency of the three -- P2P_STAR
+        // keeps topology flexible for multiple simultaneous connections, which this never needs.
+        // setLowPower(false) is already the API default (it only restricts discovery to BLE-only
+        // when true), spelled out here so the "use every available medium for the fastest possible
+        // handshake" intent survives a future SDK default change.
+        val options = AdvertisingOptions.Builder()
+            .setStrategy(Strategy.P2P_POINT_TO_POINT)
+            .setLowPower(false)
+            .build()
         client.startAdvertising(displayName, serviceId(gameId), connectionLifecycleCallback, options)
             .addOnFailureListener { _state.value = ConnectionState.Failed(it.message ?: "Помилка хостингу") }
     }
@@ -92,7 +103,10 @@ class NearbyGameConnection(context: Context) : GameConnection {
     override fun join(gameId: String, displayName: String) {
         outgoingName = displayName
         _state.value = ConnectionState.Discovering
-        val options = DiscoveryOptions.Builder().setStrategy(Strategy.P2P_STAR).build()
+        val options = DiscoveryOptions.Builder()
+            .setStrategy(Strategy.P2P_POINT_TO_POINT)
+            .setLowPower(false)
+            .build()
         client.startDiscovery(serviceId(gameId), endpointDiscoveryCallback, options)
             .addOnFailureListener { _state.value = ConnectionState.Failed(it.message ?: "Помилка пошуку") }
     }

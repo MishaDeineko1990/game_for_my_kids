@@ -34,6 +34,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -120,7 +121,13 @@ fun MatchScreen(mode: MatchMode, connection: GameConnection?, onExit: () -> Unit
 
     if (mode is MatchMode.Client) {
         LaunchedEffect(localInput) {
-            connection?.send(NetProtocol.encodeInput(localInput))
+            // Mirror before sending -- see BlobInput.mirroredX(): a joining client's drag target is
+            // computed in its own "my blob renders on the left" screen terms, but the host applies
+            // received input directly to its unmirrored OPPONENT-side blob (the right side). Without
+            // this, the client's target always falls in the host's PLAYER range and clamps to the
+            // opponent range's near edge, pinning the client's blob against the net no matter where
+            // they drag -- the real cause behind "controls broken in network play".
+            connection?.send(NetProtocol.encodeInput(localInput.mirroredX()))
         }
     }
 
@@ -451,6 +458,36 @@ private fun DrawScope.drawBlob(metrics: CourtMetrics, blob: BlobState, color: Co
             topLeft = Offset(center.x - radius * 0.35f, center.y - radius * 0.05f),
             size = Size(radius * 0.7f, radius * 0.5f),
             style = Stroke(width = radius * 0.08f, cap = StrokeCap.Round),
+        )
+
+        // A small tied-off knot plus a curled string trailing below -- reads as a balloon rather
+        // than a plain ball, per request.
+        val knotWidth = radius * 0.32f
+        val knotHeight = radius * 0.24f
+        val knotTopY = center.y + radius * 0.94f
+        val knotPath = Path().apply {
+            moveTo(center.x - knotWidth / 2f, knotTopY)
+            lineTo(center.x + knotWidth / 2f, knotTopY)
+            lineTo(center.x, knotTopY + knotHeight)
+            close()
+        }
+        drawPath(knotPath, color = color)
+
+        val stringStart = Offset(center.x, knotTopY + knotHeight)
+        val stringLength = radius * 1.5f
+        val stringSway = radius * 0.4f
+        val stringPath = Path().apply {
+            moveTo(stringStart.x, stringStart.y)
+            cubicTo(
+                stringStart.x + stringSway, stringStart.y + stringLength * 0.35f,
+                stringStart.x - stringSway, stringStart.y + stringLength * 0.7f,
+                stringStart.x, stringStart.y + stringLength,
+            )
+        }
+        drawPath(
+            stringPath,
+            color = BeachPalette.balloonString,
+            style = Stroke(width = radius * 0.05f, cap = StrokeCap.Round),
         )
     }
 }
