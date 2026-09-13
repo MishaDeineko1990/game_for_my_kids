@@ -1,9 +1,9 @@
 {
   "hub": {
-    "versionCode": 9,
-    "versionName": "1.5.2",
-    "apkUrl": "https://github.com/MishaDeineko1990/game_for_my_kids/releases/download/hub-v1.5.2/hub-debug.apk",
-    "notes": "Додано чіткий рахунок гри (X : Y) по центру екрана у пляжному волейболі."
+    "versionCode": 10,
+    "versionName": "1.6.0",
+    "apkUrl": "https://github.com/MishaDeineko1990/game_for_my_kids/releases/download/hub-v1.6.0/hub-debug.apk",
+    "notes": "Виправлено керування у мережевій грі, пришвидшено підключення по Bluetooth, персонажі тепер виглядають як повітряні кульки з ниткою."
   },
   "games": [
     {
@@ -16,7 +16,7 @@
       "id": "beach_volleyball",
       "title": "Пляжний волейбол",
       "description": "Перетягуй пальцем і стрибай через сітку -- проти комп'ютера або друга по Bluetooth",
-      "contentVersion": 7
+      "contentVersion": 8
     }
   ]
 }
