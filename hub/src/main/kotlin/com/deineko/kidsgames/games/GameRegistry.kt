@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import com.deineko.beachvolleyball.BeachVolleyballApp
 import com.deineko.colorblock.ColorBlockApp
 import com.deineko.colorblock.core.ALL_LEVELS
+import com.deineko.traktorskladaika.R as TraktorR
+import com.deineko.traktorskladaika.TraktorSkladaikaApp
 
 enum class AgeGroup(val label: String) {
     TODDLER("3-5"),
@@ -31,6 +33,8 @@ data class GameInfo(
     val ageGroup: AgeGroup,
     val category: GameCategory,
     val bundledVersion: Int,
+    /** Optional drawable shown on the card instead of the plain [accent] square. */
+    val iconRes: Int? = null,
 )
 
 object GameRegistry {
@@ -55,6 +59,17 @@ object GameRegistry {
             category = GameCategory.SPORTS,
             bundledVersion = 8,
         ),
+        GameInfo(
+            id = "traktor_skladaika",
+            title = "Трактор-Складайка",
+            description = "Склади вантаж на причіп трактора",
+            levelCount = 0,
+            accent = 0xFF7CB342,
+            ageGroup = AgeGroup.TODDLER,
+            category = GameCategory.PUZZLE,
+            bundledVersion = 1,
+            iconRes = TraktorR.drawable.traktor_icon,
+        ),
     )
 
     @Composable
@@ -62,6 +77,7 @@ object GameRegistry {
         when (id) {
             "color_block" -> ColorBlockApp(onExitToHub = onExit)
             "beach_volleyball" -> BeachVolleyballApp(onExitToHub = onExit)
+            "traktor_skladaika" -> TraktorSkladaikaApp(onExitToHub = onExit)
         }
     }
 }
