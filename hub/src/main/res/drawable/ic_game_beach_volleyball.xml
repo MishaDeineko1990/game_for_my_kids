@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Beach volleyball game icon: sky + sand court, a net band strung between two posts, a sun,
+     and a big panelled ball flying over the net with its shadow on the sand. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- sky -->
+    <path android:fillColor="#7EC8F3" android:pathData="M0,0 H108 V72 H0 Z" />
+    <!-- sand -->
+    <path android:fillColor="#F2C879" android:pathData="M0,72 H108 V108 H0 Z" />
+    <!-- sun -->
+    <path android:fillColor="#FFD54F" android:pathData="M88,18 m-10,0 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0 Z" />
+
+    <!-- ball shadow -->
+    <path android:fillColor="#33000000" android:pathData="M46,94 m-13,0 a13,4 0 1,0 26,0 a13,4 0 1,0 -26,0 Z" />
+
+    <!-- net posts -->
+    <path android:fillColor="#5D4037" android:pathData="M12,44 H17 V90 H12 Z" />
+    <path android:fillColor="#5D4037" android:pathData="M91,44 H96 V90 H91 Z" />
+    <!-- net mesh band -->
+    <path android:fillColor="#40FFFFFF" android:pathData="M17,50 H91 V66 H17 Z" />
+    <path
+        android:strokeColor="#E6FFFFFF"
+        android:strokeWidth="0.9"
+        android:pathData="M17,56 H91 M17,61 H91 M17,66 H91 M23,50 V66 M29,50 V66 M35,50 V66 M41,50 V66 M47,50 V66 M53,50 V66 M59,50 V66 M65,50 V66 M71,50 V66 M77,50 V66 M83,50 V66 M89,50 V66" />
+    <!-- net top tape -->
+    <path android:fillColor="#FFFFFF" android:pathData="M17,47 H91 V51 H17 Z" />
+
+    <!-- ball -->
+    <path android:fillColor="#FFFFFF" android:pathData="M46,26 m-17,0 a17,17 0 1,0 34,0 a17,17 0 1,0 -34,0 Z" />
+    <!-- coloured panels -->
+    <path android:fillColor="#29B6F6" android:pathData="M46,9 A17,17 0 0 1 63,26 Q52,22 46,9 Z" />
+    <path android:fillColor="#FDD835" android:pathData="M29,26 A17,17 0 0 0 46,43 Q40,32 29,26 Z" />
+    <!-- seams -->
+    <path
+        android:strokeColor="#1E3A5F"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:pathData="M46,9 Q52,22 63,26 M29,26 Q40,32 46,43 M34,14 Q48,20 58,38" />
+    <!-- outline -->
+    <path
+        android:strokeColor="#1E3A5F"
+        android:strokeWidth="1.8"
+        android:pathData="M46,26 m-17,0 a17,17 0 1,0 34,0 a17,17 0 1,0 -34,0 Z" />
+</vector>
