@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Color Block game icon: teal background, three LEGO-style sliding blocks with studs,
+     small arrow hinting at sliding a block out of the frame. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#57C6B4"
+        android:pathData="M0,0 H108 V108 H0 Z" />
+
+    <!-- red block -->
+    <path
+        android:fillColor="#FF5252"
+        android:pathData="M20,18 H60 A6,6 0 0 1 66,24 V30 A6,6 0 0 1 60,36 H20 A6,6 0 0 1 14,30 V24 A6,6 0 0 1 20,18 Z" />
+    <path android:fillColor="#E53935" android:pathData="M26,27 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 Z" />
+    <path android:fillColor="#E53935" android:pathData="M40,27 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 Z" />
+    <path android:fillColor="#E53935" android:pathData="M54,27 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 Z" />
+
+    <!-- yellow block -->
+    <path
+        android:fillColor="#FFCA28"
+        android:pathData="M78,14 H86 A6,6 0 0 1 92,20 V54 A6,6 0 0 1 86,60 H78 A6,6 0 0 1 72,54 V20 A6,6 0 0 1 78,14 Z" />
+    <path android:fillColor="#FFB300" android:pathData="M82,24 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 Z" />
+    <path android:fillColor="#FFB300" android:pathData="M82,40 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 Z" />
+
+    <!-- blue block -->
+    <path
+        android:fillColor="#42A5F5"
+        android:pathData="M20,64 H54 A6,6 0 0 1 60,70 V76 A6,6 0 0 1 54,82 H20 A6,6 0 0 1 14,76 V70 A6,6 0 0 1 20,64 Z" />
+    <path android:fillColor="#1E88E5" android:pathData="M24,73 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 Z" />
+    <path android:fillColor="#1E88E5" android:pathData="M37,73 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 Z" />
+    <path android:fillColor="#1E88E5" android:pathData="M50,73 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 Z" />
+
+    <!-- sliding-out arrow -->
+    <path android:fillColor="#B3FFFFFF" android:pathData="M88,68 L100,73 L88,78 Z" />
+</vector>

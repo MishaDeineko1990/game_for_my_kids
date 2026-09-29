@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import com.deineko.beachvolleyball.BeachVolleyballApp
 import com.deineko.colorblock.ColorBlockApp
 import com.deineko.colorblock.core.ALL_LEVELS
+import com.deineko.kidsgames.R
 import com.deineko.traktorskladaika.R as TraktorR
 import com.deineko.traktorskladaika.TraktorSkladaikaApp
 
@@ -48,6 +49,7 @@ object GameRegistry {
             ageGroup = AgeGroup.TODDLER,
             category = GameCategory.PUZZLE,
             bundledVersion = 1,
+            iconRes = R.drawable.ic_game_color_block,
         ),
         GameInfo(
             id = "beach_volleyball",
@@ -58,6 +60,7 @@ object GameRegistry {
             ageGroup = AgeGroup.KID,
             category = GameCategory.SPORTS,
             bundledVersion = 8,
+            iconRes = R.drawable.ic_game_beach_volleyball,
         ),
         GameInfo(
             id = "traktor_skladaika",
