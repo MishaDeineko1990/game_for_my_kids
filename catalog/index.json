@@ -1,9 +1,9 @@
 {
   "hub": {
-    "versionCode": 10,
-    "versionName": "1.6.0",
-    "apkUrl": "https://github.com/MishaDeineko1990/game_for_my_kids/releases/download/hub-v1.6.0/hub-debug.apk",
-    "notes": "Виправлено керування у мережевій грі, пришвидшено підключення по Bluetooth, персонажі тепер виглядають як повітряні кульки з ниткою."
+    "versionCode": 11,
+    "versionName": "1.7.0",
+    "apkUrl": "https://github.com/MishaDeineko1990/game_for_my_kids/releases/download/hub-v1.7.0/hub-debug.apk",
+    "notes": "Нова гра «Трактор-Складайка»: склади вантаж на причіп трактора."
   },
   "games": [
     {
@@ -17,6 +17,12 @@
       "title": "Пляжний волейбол",
       "description": "Перетягуй пальцем і стрибай через сітку -- проти комп'ютера або друга по Bluetooth",
       "contentVersion": 8
+    },
+    {
+      "id": "traktor_skladaika",
+      "title": "Трактор-Складайка",
+      "description": "Склади вантаж на причіп трактора",
+      "contentVersion": 1
     }
   ]
 }
